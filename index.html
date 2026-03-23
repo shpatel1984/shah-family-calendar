@@ -121,12 +121,21 @@ header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 24px 32px 16px;
 }
+.nav-left { display: flex; align-items: center; gap: 8px; }
 .nav-month {
   font-size: 1.5rem; font-weight: 700;
   letter-spacing: -0.03em; color: var(--text);
-  flex: 1; min-width: 0;
+  min-width: 0; user-select: none;
 }
 .nav-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.nav-arrow {
+  width: 40px; height: 40px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--card);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; color: var(--text);
+  transition: all var(--transition);
+}
+.nav-arrow:hover { background: var(--bg); border-color: var(--border-hover); }
 .nav-btn {
   width: 36px; height: 36px; border-radius: 10px;
   border: 1px solid var(--border); background: var(--card);
@@ -136,10 +145,10 @@ header {
 }
 .nav-btn:hover { background: var(--bg); border-color: var(--border-hover); color: var(--text); }
 .today-btn {
-  height: 36px; padding: 0 14px; border-radius: 10px;
+  height: 32px; padding: 0 12px; border-radius: 8px;
   border: 1px solid var(--border); background: var(--card);
   cursor: pointer; font-family: inherit;
-  font-size: 0.78rem; font-weight: 500; color: var(--text-secondary);
+  font-size: 0.72rem; font-weight: 500; color: var(--text-secondary);
   transition: all var(--transition);
 }
 .today-btn:hover { background: var(--bg); color: var(--text); }
@@ -425,10 +434,12 @@ header {
     padding: 10px 8px 6px;
     flex-direction: column; align-items: stretch; gap: 6px;
   }
-  .nav-month { font-size: 1.1rem; width: 100%; }
+  .nav-left { width: 100%; justify-content: space-between; }
+  .nav-month { font-size: 1.1rem; }
+  .nav-arrow { width: 34px; height: 34px; font-size: 1.2rem; border-radius: 8px; }
   .nav-controls { gap: 4px; }
   .nav-btn { width: 28px; height: 28px; font-size: 0.85rem; border-radius: 8px; }
-  .today-btn { height: 28px; padding: 0 8px; font-size: 0.68rem; border-radius: 8px; }
+  .today-btn { height: 26px; padding: 0 8px; font-size: 0.65rem; border-radius: 6px; }
   .add-event-btn { height: 28px; padding: 0 10px; font-size: 0.68rem; border-radius: 8px; }
   .add-event-btn span { display: none; }
   .add-event-btn::before { content: '+'; font-size: 0.95rem; }
@@ -515,9 +526,12 @@ header {
 <header>
   <div class="header-left">
     <div class="header-title">Family Calendar</div>
-    <div class="sync-badge" id="sync-badge">
-      <span class="sync-dot"></span>
-      <span id="sync-text">Live</span>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="today-btn" id="today-btn">Today</button>
+      <div class="sync-badge" id="sync-badge">
+        <span class="sync-dot"></span>
+        <span id="sync-text">Live</span>
+      </div>
     </div>
   </div>
   <div class="family-legend">
@@ -529,11 +543,12 @@ header {
 </header>
 
 <div class="nav-bar">
-  <div class="nav-month" id="nav-month"></div>
+  <div class="nav-left">
+    <button class="nav-arrow" id="prev-btn" title="Previous month">&#8249;</button>
+    <div class="nav-month" id="nav-month"></div>
+    <button class="nav-arrow" id="next-btn" title="Next month">&#8250;</button>
+  </div>
   <div class="nav-controls">
-    <button class="nav-btn" id="prev-btn" title="Previous month">&#8249;</button>
-    <button class="today-btn" id="today-btn">Today</button>
-    <button class="nav-btn" id="next-btn" title="Next month">&#8250;</button>
     <button class="nav-btn" id="refresh-btn" title="Refresh">&#8635;</button>
     <button class="bulk-select-btn" id="bulk-select-btn">Select</button>
     <button class="add-event-btn" id="add-event-btn">
