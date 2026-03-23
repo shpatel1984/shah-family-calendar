@@ -533,6 +533,7 @@ header {
     <button class="nav-btn" id="prev-btn" title="Previous month">&#8249;</button>
     <button class="today-btn" id="today-btn">Today</button>
     <button class="nav-btn" id="next-btn" title="Next month">&#8250;</button>
+    <button class="nav-btn" id="refresh-btn" title="Refresh">&#8635;</button>
     <button class="bulk-select-btn" id="bulk-select-btn">Select</button>
     <button class="add-event-btn" id="add-event-btn">
       <span style="font-size:1rem;line-height:1">+</span> Add Event
@@ -1246,6 +1247,12 @@ header {
     currentYear = t.getFullYear();
     currentMonth = t.getMonth();
     render();
+  });
+  $('refresh-btn').addEventListener('click', async () => {
+    $('refresh-btn').style.animation = 'spin 0.6s linear';
+    await loadEvents();
+    render();
+    setTimeout(() => $('refresh-btn').style.animation = '', 600);
   });
   $('add-event-btn').addEventListener('click', () => { hideSelectionBar(); clearSelection(); openAddModal(); });
 
