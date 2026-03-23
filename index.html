@@ -665,8 +665,9 @@ header {
       grid.querySelectorAll('.pill-delete').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          if (!confirm('Delete this event?')) return;
-          await deleteEvent(btn.dataset.id);
+          const cellDate = btn.closest('.day-cell').dataset.date;
+          if (!confirm('Remove this event from this day?')) return;
+          await removeEventFromDate(btn.dataset.id, cellDate);
         });
       });
     }
@@ -781,8 +782,8 @@ header {
     dayModalBody.querySelectorAll('.day-event-delete').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        if (!confirm('Delete this event?')) return;
-        await deleteEvent(btn.dataset.id);
+        if (!confirm('Remove this event from this day?')) return;
+        await removeEventFromDate(btn.dataset.id, dateString);
         openDayModal(dateString);
       });
     });
@@ -894,6 +895,66 @@ header {
     const { error } = await sb.from('events').delete().eq('id', id);
     if (error) { alert('Error deleting: ' + error.message); return; }
     events = events.filter(e => String(e.id) !== String(id));
+    render();
+  }
+
+  function nextDay(ds) {
+    const d = parseDate(ds); d.setDate(d.getDate() + 1);
+    return dateStr(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  function prevDay(ds) {
+    const d = parseDate(ds); d.setDate(d.getDate() - 1);
+    return dateStr(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+
+  async function removeEventFromDate(id, dateString) {
+    const ev = events.find(e => String(e.id) === String(id));
+    if (!ev) return;
+
+    // Single-day event: just delete entirely
+    if (ev.start === ev.end) {
+      await deleteEvent(id);
+      return;
+    }
+
+    // Multi-day: removing from start edge — shrink start forward
+    if (dateString === ev.start) {
+      const newStart = nextDay(ev.start);
+      const { data, error } = await sb.from('events').update({ start: newStart }).eq('id', ev.id).select();
+      if (error) { alert('Error updating: ' + error.message); return; }
+      if (data && data[0]) { const idx = events.findIndex(e => e.id === ev.id); if (idx >= 0) events[idx] = data[0]; }
+      render();
+      return;
+    }
+
+    // Multi-day: removing from end edge — shrink end backward
+    if (dateString === ev.end) {
+      const newEnd = prevDay(ev.end);
+      const { data, error } = await sb.from('events').update({ end: newEnd }).eq('id', ev.id).select();
+      if (error) { alert('Error updating: ' + error.message); return; }
+      if (data && data[0]) { const idx = events.findIndex(e => e.id === ev.id); if (idx >= 0) events[idx] = data[0]; }
+      render();
+      return;
+    }
+
+    // Multi-day: removing from the middle — split into two events
+    const endBefore = prevDay(dateString);
+    const startAfter = nextDay(dateString);
+
+    // Shrink the original to end before the removed day
+    const { data: updated, error: err1 } = await sb.from('events').update({ end: endBefore }).eq('id', ev.id).select();
+    if (err1) { alert('Error updating: ' + err1.message); return; }
+    if (updated && updated[0]) { const idx = events.findIndex(e => e.id === ev.id); if (idx >= 0) events[idx] = updated[0]; }
+
+    // Create a new event for the portion after the removed day
+    const newRow = {
+      title: ev.title, who: ev.who, start: startAfter, end: ev.end,
+      start_time: ev.start_time, end_time: ev.end_time, notes: ev.notes
+    };
+    const { data: inserted, error: err2 } = await sb.from('events').insert([newRow]).select();
+    if (err2) { alert('Error creating split: ' + err2.message); return; }
+    if (inserted) events.push(...inserted);
+
     render();
   }
 
