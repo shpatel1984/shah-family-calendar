@@ -256,11 +256,12 @@ header {
   margin-top: 4px; font-style: italic;
 }
 .day-event-delete {
-  width: 28px; height: 28px; border-radius: 6px;
-  border: none; background: transparent; cursor: pointer;
-  color: #CCC; font-size: 0.85rem;
+  width: 32px; height: 32px; border-radius: 50%;
+  border: none; background: #F3EFEA; cursor: pointer;
+  color: #999; font-size: 1rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   transition: all 0.15s; flex-shrink: 0;
+  font-family: 'DM Sans', sans-serif;
 }
 .day-event-delete:hover { background: #FEE2E2; color: #EF4444; }
 .no-events {
@@ -678,7 +679,7 @@ header {
             <div class="day-event-meta">${esc(meta)}</div>
             ${ev.notes ? `<div class="day-event-notes">${esc(ev.notes)}</div>` : ''}
           </div>
-          <button class="day-event-delete" data-id="${ev.id}" title="Delete">🗑</button>
+          <button class="day-event-delete" data-id="${ev.id}" title="Delete">✕</button>
         </div>`;
       }
     }
