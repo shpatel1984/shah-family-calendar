@@ -399,6 +399,27 @@ header {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+/* Undo Toast */
+.undo-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+  z-index: 300; background: #111827; color: #fff;
+  padding: 12px 20px; border-radius: 14px;
+  font-size: 0.82rem; font-weight: 500;
+  display: flex; align-items: center; gap: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+  opacity: 0; transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none; font-family: 'Inter', sans-serif;
+}
+.undo-toast.visible { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
+.undo-toast-btn {
+  padding: 5px 14px; border-radius: 8px; border: none;
+  background: #fff; color: #111827;
+  cursor: pointer; font-family: inherit;
+  font-weight: 600; font-size: 0.78rem;
+  transition: background 0.15s;
+}
+.undo-toast-btn:hover { background: #E5E7EB; }
 </style>
 </head>
 <body>
@@ -512,6 +533,11 @@ header {
   </div>
 </div>
 
+<div class="undo-toast" id="undo-toast">
+  <span id="undo-toast-text">Event removed</span>
+  <button class="undo-toast-btn" id="undo-toast-btn">Undo</button>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (function() {
@@ -534,6 +560,8 @@ header {
   let editingEventId = null;
   let bulkMode = false;
   let bulkSelected = new Set();
+  let undoStack = []; // { type, data } for undo operations
+  let undoTimer = null;
 
   const $ = id => document.getElementById(id);
   const grid = $('calendar-grid');
@@ -666,7 +694,6 @@ header {
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           const cellDate = btn.closest('.day-cell').dataset.date;
-          if (!confirm('Remove this event from this day?')) return;
           await removeEventFromDate(btn.dataset.id, cellDate);
         });
       });
@@ -782,7 +809,6 @@ header {
     dayModalBody.querySelectorAll('.day-event-delete').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        if (!confirm('Remove this event from this day?')) return;
         await removeEventFromDate(btn.dataset.id, dateString);
         openDayModal(dateString);
       });
@@ -891,11 +917,40 @@ header {
     events = data || [];
   }
 
+  // --- Undo Toast ---
+  function showUndo(message, undoFn) {
+    clearTimeout(undoTimer);
+    $('undo-toast-text').textContent = message;
+    const toast = $('undo-toast');
+    toast.classList.add('visible');
+    // Replace undo handler
+    const btn = $('undo-toast-btn');
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    newBtn.id = 'undo-toast-btn';
+    newBtn.addEventListener('click', async () => {
+      toast.classList.remove('visible');
+      clearTimeout(undoTimer);
+      await undoFn();
+      render();
+    });
+    undoTimer = setTimeout(() => toast.classList.remove('visible'), 6000);
+  }
+
   async function deleteEvent(id) {
+    const ev = events.find(e => String(e.id) === String(id));
+    const snapshot = ev ? { ...ev } : null;
     const { error } = await sb.from('events').delete().eq('id', id);
     if (error) { alert('Error deleting: ' + error.message); return; }
     events = events.filter(e => String(e.id) !== String(id));
     render();
+    if (snapshot) {
+      showUndo(`"${snapshot.title}" removed`, async () => {
+        const { id: _, ...rest } = snapshot;
+        const { data, error } = await sb.from('events').insert([rest]).select();
+        if (!error && data) events.push(...data);
+      });
+    }
   }
 
   function nextDay(ds) {
@@ -910,6 +965,7 @@ header {
   async function removeEventFromDate(id, dateString) {
     const ev = events.find(e => String(e.id) === String(id));
     if (!ev) return;
+    const snapshot = { ...ev };
 
     // Single-day event: just delete entirely
     if (ev.start === ev.end) {
@@ -917,45 +973,69 @@ header {
       return;
     }
 
-    // Multi-day: removing from start edge — shrink start forward
+    // Multi-day: removing from start edge
     if (dateString === ev.start) {
+      const oldStart = ev.start;
       const newStart = nextDay(ev.start);
       const { data, error } = await sb.from('events').update({ start: newStart }).eq('id', ev.id).select();
       if (error) { alert('Error updating: ' + error.message); return; }
       if (data && data[0]) { const idx = events.findIndex(e => e.id === ev.id); if (idx >= 0) events[idx] = data[0]; }
       render();
+      showUndo(`"${ev.title}" removed from ${fmtShort(dateString)}`, async () => {
+        const { data } = await sb.from('events').update({ start: oldStart }).eq('id', ev.id).select();
+        if (data && data[0]) { const idx = events.findIndex(e => e.id === ev.id); if (idx >= 0) events[idx] = data[0]; }
+      });
       return;
     }
 
-    // Multi-day: removing from end edge — shrink end backward
+    // Multi-day: removing from end edge
     if (dateString === ev.end) {
+      const oldEnd = ev.end;
       const newEnd = prevDay(ev.end);
       const { data, error } = await sb.from('events').update({ end: newEnd }).eq('id', ev.id).select();
       if (error) { alert('Error updating: ' + error.message); return; }
       if (data && data[0]) { const idx = events.findIndex(e => e.id === ev.id); if (idx >= 0) events[idx] = data[0]; }
       render();
+      showUndo(`"${ev.title}" removed from ${fmtShort(dateString)}`, async () => {
+        const { data } = await sb.from('events').update({ end: oldEnd }).eq('id', ev.id).select();
+        if (data && data[0]) { const idx = events.findIndex(e => e.id === ev.id); if (idx >= 0) events[idx] = data[0]; }
+      });
       return;
     }
 
     // Multi-day: removing from the middle — split into two events
     const endBefore = prevDay(dateString);
     const startAfter = nextDay(dateString);
+    const origEnd = ev.end;
 
-    // Shrink the original to end before the removed day
     const { data: updated, error: err1 } = await sb.from('events').update({ end: endBefore }).eq('id', ev.id).select();
     if (err1) { alert('Error updating: ' + err1.message); return; }
     if (updated && updated[0]) { const idx = events.findIndex(e => e.id === ev.id); if (idx >= 0) events[idx] = updated[0]; }
 
-    // Create a new event for the portion after the removed day
     const newRow = {
       title: ev.title, who: ev.who, start: startAfter, end: ev.end,
       start_time: ev.start_time, end_time: ev.end_time, notes: ev.notes
     };
     const { data: inserted, error: err2 } = await sb.from('events').insert([newRow]).select();
     if (err2) { alert('Error creating split: ' + err2.message); return; }
+    const newId = inserted && inserted[0] ? inserted[0].id : null;
     if (inserted) events.push(...inserted);
 
     render();
+    showUndo(`"${ev.title}" removed from ${fmtShort(dateString)}`, async () => {
+      // Undo: restore original end, delete the split portion
+      await sb.from('events').update({ end: origEnd }).eq('id', ev.id).select().then(({ data }) => {
+        if (data && data[0]) { const idx = events.findIndex(e => e.id === ev.id); if (idx >= 0) events[idx] = data[0]; }
+      });
+      if (newId) {
+        await sb.from('events').delete().eq('id', newId);
+        events = events.filter(e => e.id !== newId);
+      }
+    });
+  }
+
+  function fmtShort(ds) {
+    return parseDate(ds).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
   async function seedIfEmpty() {
@@ -1035,13 +1115,18 @@ header {
       <button class="bulk-cancel-btn">Done</button>`;
     bar.querySelector('.bulk-delete-btn').addEventListener('click', async () => {
       if (bulkSelected.size === 0) return;
-      if (!confirm(`Delete ${bulkSelected.size} event(s)?`)) return;
       const ids = [...bulkSelected];
+      const snapshots = events.filter(e => ids.includes(String(e.id))).map(e => ({...e}));
       const { error } = await sb.from('events').delete().in('id', ids.map(Number));
       if (error) { alert('Error deleting: ' + error.message); return; }
       events = events.filter(e => !ids.includes(String(e.id)));
       bulkSelected.clear();
       render();
+      showUndo(`${snapshots.length} event${snapshots.length !== 1 ? 's' : ''} removed`, async () => {
+        const rows = snapshots.map(({ id, ...rest }) => rest);
+        const { data, error } = await sb.from('events').insert(rows).select();
+        if (!error && data) events.push(...data);
+      });
     });
     bar.querySelector('.bulk-cancel-btn').addEventListener('click', () => {
       bulkMode = false;
