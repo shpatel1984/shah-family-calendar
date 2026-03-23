@@ -40,12 +40,16 @@
   --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+html { overflow-x: hidden; }
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Loading */
@@ -384,13 +388,13 @@ header {
 .form-submit:hover { background: #374151; }
 .form-submit:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* Responsive */
+/* Responsive - Tablet */
 @media (max-width: 768px) {
   header { padding: 12px 16px; }
   .header-title { font-size: 0.85rem; }
   .nav-bar { padding: 16px 16px 10px; }
   .nav-month { font-size: 1.2rem; }
-  .calendar-wrapper { padding: 0 16px 16px; }
+  .calendar-wrapper { padding: 0 8px 16px; }
   .day-cell { min-height: 90px; padding: 4px; }
   .day-num { font-size: 0.7rem; width: 22px; height: 22px; }
   .event-pill { font-size: 0.6rem; padding: 2px 5px; }
@@ -399,6 +403,73 @@ header {
   .nav-controls { gap: 4px; }
   .nav-btn, .today-btn, .add-event-btn, .bulk-select-btn { height: 32px; font-size: 0.72rem; }
   .nav-btn { width: 32px; }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 480px) {
+  body { overflow-x: hidden; }
+  header {
+    padding: 10px 12px;
+    flex-direction: column; align-items: flex-start; gap: 8px;
+  }
+  .header-left { width: 100%; justify-content: space-between; }
+  .family-legend { width: 100%; justify-content: flex-start; gap: 12px; }
+  .legend-item { font-size: 0.68rem; }
+  .legend-dot { width: 7px; height: 7px; }
+
+  .nav-bar {
+    padding: 12px 12px 8px;
+    flex-wrap: wrap; gap: 8px;
+  }
+  .nav-month { font-size: 1.15rem; flex: 1; }
+  .nav-controls { gap: 4px; flex-wrap: wrap; }
+  .nav-btn { width: 30px; height: 30px; font-size: 0.9rem; }
+  .today-btn { height: 30px; padding: 0 10px; font-size: 0.7rem; }
+  .add-event-btn { height: 30px; padding: 0 10px; font-size: 0.7rem; }
+  .add-event-btn span { display: none; }
+  .add-event-btn::before { content: '+'; font-size: 1rem; }
+  .bulk-select-btn { height: 30px; padding: 0 10px; font-size: 0.7rem; }
+
+  .calendar-wrapper { padding: 0 4px 12px; }
+  .weekday-row { margin-bottom: 2px; }
+  .weekday-cell { font-size: 0.6rem; padding: 6px 0; letter-spacing: 0.05em; }
+
+  .calendar-grid { border-radius: 10px; }
+  .day-cell { min-height: 70px; padding: 3px; }
+  .day-num { font-size: 0.65rem; width: 20px; height: 20px; margin-bottom: 2px; }
+  .day-cell.today .day-num { width: 20px; height: 20px; border-radius: 6px; }
+  .day-events { gap: 1px; }
+  .event-pill { font-size: 0.55rem; padding: 1.5px 4px; border-radius: 4px; line-height: 1.4; }
+  .pill-actions { gap: 1px; }
+  .pill-edit, .pill-delete { width: 14px; height: 14px; font-size: 0.45rem; }
+  .event-more { font-size: 0.55rem; }
+
+  /* Modal adjustments */
+  .modal { border-radius: 16px; max-width: 100%; margin: 8px; }
+  .modal-header { padding: 16px 16px 0; }
+  .modal-title { font-size: 0.95rem; }
+  .modal-body { padding: 14px 16px 20px; }
+  .modal-close { width: 28px; height: 28px; font-size: 0.8rem; }
+
+  .form-input, .form-textarea { padding: 9px 12px; font-size: 0.82rem; }
+  .form-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .who-toggle { padding: 6px 12px; font-size: 0.72rem; }
+  .form-submit { padding: 10px; font-size: 0.82rem; }
+
+  .day-event-edit, .day-event-delete { width: 28px; height: 28px; }
+  .day-event-title { font-size: 0.82rem; }
+  .day-event-meta { font-size: 0.72rem; }
+
+  /* Toast */
+  .undo-toast { padding: 10px 14px; font-size: 0.75rem; gap: 10px; border-radius: 12px; bottom: 16px; max-width: calc(100vw - 24px); }
+  .undo-toast-btn { padding: 4px 12px; font-size: 0.72rem; }
+
+  /* Bulk bar */
+  .bulk-bar { padding: 8px 14px; font-size: 0.75rem; gap: 8px; border-radius: 12px; bottom: 16px; max-width: calc(100vw - 24px); }
+  .bulk-bar button { padding: 5px 10px; font-size: 0.72rem; }
+
+  /* Selection bar */
+  #selection-bar { font-size: 0.72rem !important; padding: 8px 12px !important; gap: 8px !important; max-width: calc(100vw - 24px) !important; flex-wrap: wrap !important; justify-content: center !important; border-radius: 12px !important; bottom: 16px !important; }
 }
 
 /* Scrollbar */
