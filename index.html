@@ -268,14 +268,16 @@ header {
   font-size: 0.78rem; color: var(--text-light);
   margin-top: 4px; font-style: italic;
 }
-.day-event-delete {
+.day-event-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.day-event-edit, .day-event-delete {
   width: 32px; height: 32px; border-radius: 50%;
   border: none; background: #F3EFEA; cursor: pointer;
-  color: #999; font-size: 1rem; font-weight: 700;
+  color: #999; font-size: 0.85rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   transition: all 0.15s; flex-shrink: 0;
   font-family: 'DM Sans', sans-serif;
 }
+.day-event-edit:hover { background: #E3F2FD; color: var(--ryan); }
 .day-event-delete:hover { background: #FEE2E2; color: #EF4444; }
 .no-events {
   text-align: center; padding: 32px 0;
@@ -418,7 +420,7 @@ header {
 <div class="modal-overlay" id="add-modal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Add Event</div>
+      <div class="modal-title" id="add-modal-title">Add Event</div>
       <button class="modal-close" id="add-modal-close">✕</button>
     </div>
     <div class="modal-body">
@@ -483,6 +485,7 @@ header {
   let selectedWho = new Set();
   let selectStart = null; // first clicked date string
   let selectEnd = null;   // second clicked date string
+  let editingEventId = null; // null = adding, id = editing
 
   // --- DOM refs ---
   const $ = id => document.getElementById(id);
@@ -701,12 +704,24 @@ header {
             <div class="day-event-meta">${esc(meta)}</div>
             ${ev.notes ? `<div class="day-event-notes">${esc(ev.notes)}</div>` : ''}
           </div>
-          <button class="day-event-delete" data-id="${ev.id}" title="Delete">✕</button>
+          <div class="day-event-actions">
+            <button class="day-event-edit" data-id="${ev.id}" title="Edit">✎</button>
+            <button class="day-event-delete" data-id="${ev.id}" title="Delete">✕</button>
+          </div>
         </div>`;
       }
     }
     html += `<button class="day-add-btn" data-date="${dateString}">+ Add Event</button>`;
     dayModalBody.innerHTML = html;
+
+    // Edit handlers
+    dayModalBody.querySelectorAll('.day-event-edit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const ev = events.find(ev => String(ev.id) === btn.dataset.id);
+        if (ev) { closeDayModal(); openEditModal(ev); }
+      });
+    });
 
     // Delete handlers
     dayModalBody.querySelectorAll('.day-event-delete').forEach(btn => {
@@ -736,8 +751,9 @@ header {
     return d.innerHTML;
   }
 
-  // --- Add Event Modal ---
+  // --- Add/Edit Event Modal ---
   function openAddModal(startDate, endDate) {
+    editingEventId = null;
     addForm.reset();
     selectedWho.clear();
     document.querySelectorAll('.who-toggle').forEach(b => b.classList.remove('selected'));
@@ -745,10 +761,31 @@ header {
       $('f-start').value = startDate;
       $('f-end').value = endDate || startDate;
     }
+    $('add-modal-title').textContent = 'Add Event';
+    $('f-submit').textContent = 'Add Event';
     addModal.classList.add('active');
   }
 
-  function closeAddModal() { addModal.classList.remove('active'); }
+  function openEditModal(ev) {
+    editingEventId = ev.id;
+    addForm.reset();
+    selectedWho.clear();
+    document.querySelectorAll('.who-toggle').forEach(b => b.classList.remove('selected'));
+    $('f-title').value = ev.title;
+    $('f-start').value = ev.start;
+    $('f-end').value = ev.end;
+    $('f-start-time').value = ev.start_time || '';
+    $('f-end-time').value = ev.end_time || '';
+    $('f-notes').value = ev.notes || '';
+    // Select the who toggle for this event's person
+    selectedWho.add(ev.who);
+    document.querySelector(`.who-toggle[data-who="${ev.who}"]`).classList.add('selected');
+    $('add-modal-title').textContent = 'Edit Event';
+    $('f-submit').textContent = 'Save Changes';
+    addModal.classList.add('active');
+  }
+
+  function closeAddModal() { addModal.classList.remove('active'); editingEventId = null; }
 
   // Who toggles
   document.querySelectorAll('.who-toggle').forEach(btn => {
@@ -764,7 +801,7 @@ header {
     });
   });
 
-  // Form submit
+  // Form submit (handles both add and edit)
   addForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (selectedWho.size === 0) { alert('Please select at least one person.'); return; }
@@ -781,16 +818,26 @@ header {
     $('f-submit').disabled = true;
     $('f-submit').textContent = 'Saving…';
 
-    const rows = [...selectedWho].map(who => ({
-      title, who, start, end,
-      start_time: startTime, end_time: endTime, notes
-    }));
-
-    const { error } = await sb.from('events').insert(rows);
-    if (error) { alert('Error saving: ' + error.message); }
+    if (editingEventId) {
+      // Update existing event
+      const who = [...selectedWho][0]; // editing is single-person
+      const { error } = await sb.from('events').update({
+        title, who, start, end,
+        start_time: startTime, end_time: endTime, notes
+      }).eq('id', editingEventId);
+      if (error) { alert('Error updating: ' + error.message); }
+    } else {
+      // Insert new event(s)
+      const rows = [...selectedWho].map(who => ({
+        title, who, start, end,
+        start_time: startTime, end_time: endTime, notes
+      }));
+      const { error } = await sb.from('events').insert(rows);
+      if (error) { alert('Error saving: ' + error.message); }
+    }
 
     $('f-submit').disabled = false;
-    $('f-submit').textContent = 'Add Event';
+    $('f-submit').textContent = editingEventId ? 'Save Changes' : 'Add Event';
     closeAddModal();
   });
 
