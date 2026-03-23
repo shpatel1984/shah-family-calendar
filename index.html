@@ -162,9 +162,9 @@ header {
 .bulk-select-btn.active { background: #EF4444; color: #fff; border-color: #EF4444; }
 
 /* Calendar */
-.calendar-wrapper { padding: 0 32px 32px; }
+.calendar-wrapper { padding: 0 32px 32px; max-width: 100%; overflow: hidden; }
 .weekday-row {
-  display: grid; grid-template-columns: repeat(7, 1fr);
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
   margin-bottom: 4px;
 }
 .weekday-cell {
@@ -174,18 +174,20 @@ header {
   letter-spacing: 0.1em;
 }
 .calendar-grid {
-  display: grid; grid-template-columns: repeat(7, 1fr);
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--border);
   gap: 1px;
+  max-width: 100%;
 }
 .day-cell {
   background: var(--card);
   min-height: 130px; padding: 8px 8px 6px;
   cursor: pointer; transition: background var(--transition);
   display: flex; flex-direction: column;
+  overflow: hidden; min-width: 0;
 }
 .day-cell:hover { background: #F9FAFB; }
 .day-cell.other-month { background: #FAFAFA; }
@@ -202,7 +204,7 @@ header {
   display: flex; align-items: center; justify-content: center;
   margin-bottom: 4px;
 }
-.day-events { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow: hidden; }
+.day-events { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow: hidden; min-width: 0; }
 .event-pill {
   padding: 3px 8px; border-radius: 6px;
   font-size: 0.68rem; font-weight: 500;
@@ -210,6 +212,7 @@ header {
   line-height: 1.5;
   display: flex; align-items: center;
   transition: opacity var(--transition);
+  min-width: 0; max-width: 100%;
 }
 .event-pill[style*="--samir"], .event-pill[data-who="Samir"] { background: var(--samir-bg); color: var(--samir); }
 .event-pill[style*="--sneha"], .event-pill[data-who="Sneha"] { background: var(--sneha-bg); color: var(--sneha); }
