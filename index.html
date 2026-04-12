@@ -1286,10 +1286,22 @@ header {
     addForm.reset();
     selectedWho.clear();
     document.querySelectorAll('.who-toggle').forEach(b => b.classList.remove('selected'));
-    if (startDate) {
-      $('f-start').value = startDate;
-      $('f-end').value = endDate || startDate;
-    }
+
+    // Auto-fill dates: default to today if not provided, end = start (single day)
+    const today = new Date();
+    const defaultDate = startDate || dateStr(today.getFullYear(), today.getMonth(), today.getDate());
+    $('f-start').value = defaultDate;
+    $('f-end').value = endDate || defaultDate;
+
+    // Auto-fill start time to next rounded hour
+    const now = new Date();
+    let nextHour = now.getHours() + 1;
+    if (nextHour > 23) nextHour = 9; // wrap to 9am
+    $('f-start-time').value = String(nextHour).padStart(2, '0') + ':00';
+    // Auto-fill end time to 1 hour after start
+    const endHour = nextHour + 1 > 23 ? nextHour : nextHour + 1;
+    $('f-end-time').value = String(endHour).padStart(2, '0') + ':00';
+
     $('add-modal-title').textContent = 'Add Event';
     $('f-submit').textContent = 'Add Event';
     $('quick-add-section').style.display = '';
@@ -1324,6 +1336,24 @@ header {
       if (selectedWho.has(who)) { selectedWho.delete(who); btn.classList.remove('selected'); }
       else { selectedWho.add(who); btn.classList.add('selected'); }
     });
+  });
+
+  // Auto-sync: start date changes → end date follows (unless user already set a range)
+  $('f-start').addEventListener('change', () => {
+    const start = $('f-start').value;
+    const end = $('f-end').value;
+    if (!end || end < start) {
+      $('f-end').value = start;
+    }
+  });
+
+  // Auto-sync: start time changes → end time = start + 1 hour
+  $('f-start-time').addEventListener('change', () => {
+    const st = $('f-start-time').value;
+    if (!st) return;
+    const [h, m] = st.split(':').map(Number);
+    const endH = (h + 1) % 24;
+    $('f-end-time').value = String(endH).padStart(2, '0') + ':' + String(m).padStart(2, '0');
   });
 
   addForm.addEventListener('submit', async (e) => {
