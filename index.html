@@ -223,7 +223,34 @@ header {
   display: flex; align-items: center;
   transition: opacity var(--transition);
   min-width: 0; max-width: 100%;
+  cursor: grab; user-select: none; -webkit-user-select: none;
+  position: relative;
 }
+.event-pill.dragging { opacity: 0.35; }
+.event-pill.drag-ghost {
+  position: fixed; pointer-events: none; z-index: 500;
+  opacity: 0.9; box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  transform: scale(1.08); border-radius: 8px;
+  padding: 5px 12px; font-size: 0.75rem; max-width: 180px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.day-cell.drag-over {
+  background: #EFF6FF !important;
+  outline: 2px solid var(--ryan); outline-offset: -2px;
+}
+.pill-resize {
+  position: absolute; right: -1px; top: 0; bottom: 0; width: 10px;
+  cursor: ew-resize; border-radius: 0 6px 6px 0;
+  display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 2px; opacity: 0; transition: opacity 0.15s;
+}
+.pill-resize::after {
+  content: ''; width: 3px; height: 10px;
+  border-left: 1px solid rgba(0,0,0,0.2);
+  border-right: 1px solid rgba(0,0,0,0.2);
+}
+.event-pill:hover .pill-resize { opacity: 1; }
+@media (pointer: coarse) { .pill-resize { display: none; } }
 .event-pill[style*="--samir"], .event-pill[data-who="Samir"] { background: var(--samir-bg); color: var(--samir); }
 .event-pill[style*="--sneha"], .event-pill[data-who="Sneha"] { background: var(--sneha-bg); color: var(--sneha); }
 .event-pill[style*="--ryan"], .event-pill[data-who="Ryan"] { background: var(--ryan-bg); color: var(--ryan); }
@@ -400,6 +427,79 @@ header {
 }
 .form-submit:hover { background: #374151; }
 .form-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Quick Add Presets */
+.quick-add-section { margin-bottom: 20px; }
+.quick-add-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.quick-add-label {
+  font-size: 0.72rem; font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.quick-add-manage {
+  font-size: 0.68rem; font-weight: 500; color: var(--text-tertiary);
+  background: none; border: none; cursor: pointer;
+  font-family: inherit; transition: color var(--transition);
+  padding: 2px 0;
+}
+.quick-add-manage:hover { color: var(--text); }
+.quick-add-chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.quick-chip {
+  padding: 6px 14px; border-radius: 100px;
+  border: 1px solid var(--border); background: var(--card);
+  cursor: pointer; font-family: inherit;
+  font-size: 0.75rem; font-weight: 500; color: var(--text);
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.quick-chip:hover { background: var(--bg); border-color: var(--border-hover); }
+.quick-chip:active { transform: scale(0.96); }
+.quick-chip.selected { background: var(--text); color: #fff; border-color: var(--text); }
+
+/* Manage Presets Modal */
+.preset-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.preset-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--bg); transition: background var(--transition);
+}
+.preset-item-name { flex: 1; font-size: 0.85rem; font-weight: 500; }
+.preset-item-remove {
+  width: 26px; height: 26px; border-radius: 8px;
+  border: none; background: transparent; cursor: pointer;
+  color: var(--text-tertiary); font-size: 0.75rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.preset-item-remove:hover { background: #FEF2F2; color: #EF4444; }
+.preset-add-row {
+  display: flex; gap: 8px;
+}
+.preset-add-input {
+  flex: 1; padding: 9px 14px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 0.85rem;
+  color: var(--text); background: var(--bg);
+  outline: none; transition: all var(--transition);
+}
+.preset-add-input:focus { border-color: var(--text); background: var(--card); }
+.preset-add-btn {
+  padding: 0 16px; border-radius: var(--radius-sm);
+  border: none; background: var(--text); color: #fff;
+  cursor: pointer; font-family: inherit;
+  font-size: 0.82rem; font-weight: 600;
+  transition: all var(--transition);
+}
+.preset-add-btn:hover { background: #374151; }
+.preset-empty {
+  text-align: center; padding: 20px 0;
+  color: var(--text-tertiary); font-size: 0.82rem;
+}
 
 /* Responsive - Tablet */
 @media (max-width: 768px) {
@@ -588,6 +688,13 @@ header {
     </div>
     <div class="modal-body">
       <form id="add-form">
+        <div class="quick-add-section" id="quick-add-section">
+          <div class="quick-add-header">
+            <span class="quick-add-label">Quick Add</span>
+            <button type="button" class="quick-add-manage" id="manage-presets-btn">Manage</button>
+          </div>
+          <div class="quick-add-chips" id="quick-add-chips"></div>
+        </div>
         <div class="form-group">
           <label class="form-label">Title</label>
           <input class="form-input" type="text" id="f-title" required placeholder="Event name">
@@ -631,6 +738,23 @@ header {
   </div>
 </div>
 
+<!-- Manage Presets Modal -->
+<div class="modal-overlay" id="presets-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Manage Quick Adds</div>
+      <button class="modal-close" id="presets-modal-close">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="preset-list" id="preset-list"></div>
+      <div class="preset-add-row">
+        <input class="preset-add-input" type="text" id="preset-new-name" placeholder="New activity name...">
+        <button type="button" class="preset-add-btn" id="preset-add-btn">Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="undo-toast" id="undo-toast">
   <span id="undo-toast-text">Event removed</span>
   <button class="undo-toast-btn" id="undo-toast-btn">Undo</button>
@@ -660,6 +784,22 @@ header {
   let bulkSelected = new Set();
   let undoStack = []; // { type, data } for undo operations
   let undoTimer = null;
+
+  // --- Quick Add Presets ---
+  const DEFAULT_PRESETS = [
+    'Mathnasium', 'Spanish Tutor', 'Baseball with Carlos',
+    'Bulldogs Practice', 'Bulldogs Game', 'Miss Lulu Dance / Ballet',
+    'Gymnastics (Gym Kids)', 'Golf', 'School of Rock'
+  ];
+  function loadPresets() {
+    const stored = localStorage.getItem('calendar-presets');
+    if (stored) return JSON.parse(stored);
+    return [...DEFAULT_PRESETS];
+  }
+  function savePresets(presets) {
+    localStorage.setItem('calendar-presets', JSON.stringify(presets));
+  }
+  let presets = loadPresets();
 
   const $ = id => document.getElementById(id);
   const grid = $('calendar-grid');
@@ -749,7 +889,7 @@ header {
           const checked = bulkSelected.has(String(ev.id)) ? 'checked' : '';
           html += `<div class="event-pill" style="background:${bg};color:${fg}"><input type="checkbox" class="pill-checkbox" data-id="${ev.id}" ${checked}><span class="event-pill-text">${ev.title}</span></div>`;
         } else {
-          html += `<div class="event-pill" style="background:${bg};color:${fg}" title="${ev.title} (${ev.who})"><span class="event-pill-text">${ev.title}</span><span class="pill-actions"><button class="pill-edit" data-id="${ev.id}" style="color:${fg}">&#9998;</button><button class="pill-delete" data-id="${ev.id}" style="color:${fg}">&#x2715;</button></span></div>`;
+          html += `<div class="event-pill" style="background:${bg};color:${fg}" title="${ev.title} (${ev.who})" data-id="${ev.id}" data-date="${ds}"><span class="event-pill-text">${ev.title}</span><span class="pill-actions"><button class="pill-edit" data-id="${ev.id}" style="color:${fg}">&#9998;</button><button class="pill-delete" data-id="${ev.id}" style="color:${fg}">&#x2715;</button></span><span class="pill-resize" data-id="${ev.id}" data-date="${ds}"></span></div>`;
         }
       }
       if (remaining > 0) {
@@ -798,8 +938,222 @@ header {
     }
 
     grid.querySelectorAll('.day-cell').forEach(cell => {
-      cell.addEventListener('click', () => { if (!bulkMode) handleDayClick(cell.dataset.date); });
+      cell.addEventListener('click', () => { if (!bulkMode && !dragDidMove) handleDayClick(cell.dataset.date); });
     });
+
+    // --- Drag & Drop setup ---
+    if (!bulkMode) {
+      setupDragAndDrop();
+    }
+  }
+
+  // --- Drag & Drop System ---
+  let dragState = null;
+  let dragGhost = null;
+  let dragDidMove = false;
+  let longPressTimer = null;
+
+  function setupDragAndDrop() {
+    grid.querySelectorAll('.event-pill[data-id]').forEach(pill => {
+      // Mouse: immediate drag
+      pill.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.pill-edit, .pill-delete, .pill-checkbox')) return;
+        const isResize = e.target.closest('.pill-resize');
+        startDrag(e, pill, isResize ? 'resize' : 'move', e.clientX, e.clientY);
+      });
+
+      // Touch: long-press to drag
+      pill.addEventListener('touchstart', (e) => {
+        if (e.target.closest('.pill-edit, .pill-delete, .pill-checkbox')) return;
+        const touch = e.touches[0];
+        const isResize = e.target.closest('.pill-resize');
+        longPressTimer = setTimeout(() => {
+          e.preventDefault();
+          navigator.vibrate && navigator.vibrate(30);
+          startDrag(e, pill, isResize ? 'resize' : 'move', touch.clientX, touch.clientY);
+        }, 350);
+      }, { passive: false });
+
+      pill.addEventListener('touchmove', () => {
+        if (!dragState) { clearTimeout(longPressTimer); }
+      }, { passive: true });
+
+      pill.addEventListener('touchend', () => {
+        clearTimeout(longPressTimer);
+      });
+    });
+  }
+
+  function startDrag(e, pill, mode, startX, startY) {
+    const id = pill.dataset.id;
+    const originDate = pill.dataset.date;
+    const ev = events.find(ev => String(ev.id) === id);
+    if (!ev) return;
+
+    dragDidMove = false;
+    const bg = COLOR_BG[ev.who] || 'rgba(0,0,0,0.08)';
+    const fg = COLORS[ev.who] || '#666';
+
+    // Create ghost
+    dragGhost = document.createElement('div');
+    dragGhost.className = 'event-pill drag-ghost';
+    dragGhost.style.background = bg;
+    dragGhost.style.color = fg;
+    dragGhost.textContent = ev.title;
+    dragGhost.style.left = startX + 'px';
+    dragGhost.style.top = (startY - 14) + 'px';
+    document.body.appendChild(dragGhost);
+
+    pill.classList.add('dragging');
+
+    dragState = {
+      id, ev: { ...ev }, originDate, mode, pill,
+      startX, startY, currentTarget: null
+    };
+
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('mouseup', onDragEnd);
+    document.addEventListener('touchmove', onDragMove, { passive: false });
+    document.addEventListener('touchend', onDragEnd);
+  }
+
+  function onDragMove(e) {
+    if (!dragState) return;
+    e.preventDefault();
+
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    // Move ghost
+    if (dragGhost) {
+      dragGhost.style.left = clientX + 'px';
+      dragGhost.style.top = (clientY - 14) + 'px';
+    }
+
+    dragDidMove = true;
+
+    // Find target day cell
+    if (dragGhost) dragGhost.style.display = 'none';
+    const el = document.elementFromPoint(clientX, clientY);
+    if (dragGhost) dragGhost.style.display = '';
+
+    const cell = el ? el.closest('.day-cell') : null;
+
+    // Clear previous highlight
+    if (dragState.currentTarget && dragState.currentTarget !== cell) {
+      dragState.currentTarget.classList.remove('drag-over');
+    }
+    if (cell) {
+      cell.classList.add('drag-over');
+      dragState.currentTarget = cell;
+    }
+  }
+
+  async function onDragEnd(e) {
+    if (!dragState) return;
+
+    document.removeEventListener('mousemove', onDragMove);
+    document.removeEventListener('mouseup', onDragEnd);
+    document.removeEventListener('touchmove', onDragMove);
+    document.removeEventListener('touchend', onDragEnd);
+
+    // Clean up ghost
+    if (dragGhost) { dragGhost.remove(); dragGhost = null; }
+    if (dragState.pill) dragState.pill.classList.remove('dragging');
+
+    // Clear highlight
+    if (dragState.currentTarget) {
+      dragState.currentTarget.classList.remove('drag-over');
+    }
+
+    const targetCell = dragState.currentTarget;
+    if (!targetCell || !dragDidMove) {
+      dragState = null;
+      setTimeout(() => { dragDidMove = false; }, 10);
+      return;
+    }
+
+    const targetDate = targetCell.dataset.date;
+    const ev = dragState.ev;
+    const mode = dragState.mode;
+    const snapshot = { start: ev.start, end: ev.end };
+
+    if (mode === 'move') {
+      // Calculate day delta from the origin pill date to target
+      const originMs = parseDate(dragState.originDate).getTime();
+      const targetMs = parseDate(targetDate).getTime();
+      const deltaDays = Math.round((targetMs - originMs) / 86400000);
+
+      if (deltaDays === 0) {
+        dragState = null;
+        setTimeout(() => { dragDidMove = false; }, 10);
+        return;
+      }
+
+      const newStart = addDays(ev.start, deltaDays);
+      const newEnd = addDays(ev.end, deltaDays);
+
+      // Optimistic update
+      const idx = events.findIndex(e => String(e.id) === String(ev.id));
+      if (idx >= 0) { events[idx].start = newStart; events[idx].end = newEnd; }
+      render();
+
+      const { data, error } = await sb.from('events').update({ start: newStart, end: newEnd }).eq('id', ev.id).select();
+      if (error) {
+        alert('Error moving event: ' + error.message);
+        if (idx >= 0) { events[idx].start = snapshot.start; events[idx].end = snapshot.end; }
+        render();
+      } else if (data && data[0]) {
+        if (idx >= 0) events[idx] = data[0];
+      }
+      showUndo(`Moved "${ev.title}"`, async () => {
+        const { data } = await sb.from('events').update({ start: snapshot.start, end: snapshot.end }).eq('id', ev.id).select();
+        if (data && data[0]) { const i = events.findIndex(e => e.id === ev.id); if (i >= 0) events[i] = data[0]; }
+        render();
+      });
+
+    } else if (mode === 'resize') {
+      // Resize: change end date to target
+      const newEnd = targetDate;
+      if (newEnd < ev.start) {
+        dragState = null;
+        setTimeout(() => { dragDidMove = false; }, 10);
+        return;
+      }
+      if (newEnd === ev.end) {
+        dragState = null;
+        setTimeout(() => { dragDidMove = false; }, 10);
+        return;
+      }
+
+      // Optimistic update
+      const idx = events.findIndex(e => String(e.id) === String(ev.id));
+      if (idx >= 0) { events[idx].end = newEnd; }
+      render();
+
+      const { data, error } = await sb.from('events').update({ end: newEnd }).eq('id', ev.id).select();
+      if (error) {
+        alert('Error resizing event: ' + error.message);
+        if (idx >= 0) events[idx].end = snapshot.end;
+        render();
+      } else if (data && data[0]) {
+        if (idx >= 0) events[idx] = data[0];
+      }
+      showUndo(`Resized "${ev.title}"`, async () => {
+        const { data } = await sb.from('events').update({ end: snapshot.end }).eq('id', ev.id).select();
+        if (data && data[0]) { const i = events.findIndex(e => e.id === ev.id); if (i >= 0) events[i] = data[0]; }
+        render();
+      });
+    }
+
+    dragState = null;
+    setTimeout(() => { dragDidMove = false; }, 10);
+  }
+
+  function addDays(dateString, days) {
+    const d = parseDate(dateString);
+    d.setDate(d.getDate() + days);
+    return dateStr(d.getFullYear(), d.getMonth(), d.getDate());
   }
 
   function handleDayClick(dateString) {
@@ -938,6 +1292,8 @@ header {
     }
     $('add-modal-title').textContent = 'Add Event';
     $('f-submit').textContent = 'Add Event';
+    $('quick-add-section').style.display = '';
+    renderQuickChips();
     addModal.classList.add('active');
   }
 
@@ -956,6 +1312,7 @@ header {
     document.querySelector(`.who-toggle[data-who="${ev.who}"]`).classList.add('selected');
     $('add-modal-title').textContent = 'Edit Event';
     $('f-submit').textContent = 'Save Changes';
+    $('quick-add-section').style.display = 'none';
     addModal.classList.add('active');
   }
 
@@ -1276,8 +1633,75 @@ header {
   dayModal.addEventListener('click', (e) => { if (e.target === dayModal) closeDayModal(); });
   $('add-modal-close').addEventListener('click', closeAddModal);
   addModal.addEventListener('click', (e) => { if (e.target === addModal) closeAddModal(); });
+
+  // --- Presets Modal ---
+  const presetsModal = $('presets-modal');
+  function openPresetsModal() {
+    closeAddModal();
+    renderPresetList();
+    presetsModal.classList.add('active');
+  }
+  function closePresetsModal() { presetsModal.classList.remove('active'); }
+
+  $('presets-modal-close').addEventListener('click', closePresetsModal);
+  presetsModal.addEventListener('click', (e) => { if (e.target === presetsModal) closePresetsModal(); });
+
+  function renderPresetList() {
+    const list = $('preset-list');
+    if (presets.length === 0) {
+      list.innerHTML = '<div class="preset-empty">No presets yet. Add one below.</div>';
+      return;
+    }
+    list.innerHTML = presets.map((p, i) =>
+      `<div class="preset-item">
+        <span class="preset-item-name">${esc(p)}</span>
+        <button class="preset-item-remove" data-index="${i}" title="Remove">&#x2715;</button>
+      </div>`
+    ).join('');
+    list.querySelectorAll('.preset-item-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        presets.splice(Number(btn.dataset.index), 1);
+        savePresets(presets);
+        renderPresetList();
+      });
+    });
+  }
+
+  $('preset-add-btn').addEventListener('click', () => {
+    const input = $('preset-new-name');
+    const name = input.value.trim();
+    if (!name) return;
+    if (!presets.includes(name)) {
+      presets.push(name);
+      savePresets(presets);
+      renderPresetList();
+    }
+    input.value = '';
+    input.focus();
+  });
+  $('preset-new-name').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); $('preset-add-btn').click(); }
+  });
+
+  $('manage-presets-btn').addEventListener('click', openPresetsModal);
+
+  function renderQuickChips() {
+    const container = $('quick-add-chips');
+    container.innerHTML = presets.map(p =>
+      `<button type="button" class="quick-chip" data-preset="${esc(p)}">${esc(p)}</button>`
+    ).join('');
+    container.querySelectorAll('.quick-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        $('f-title').value = chip.dataset.preset;
+        // Visual feedback
+        container.querySelectorAll('.quick-chip').forEach(c => c.classList.remove('selected'));
+        chip.classList.add('selected');
+      });
+    });
+  }
+
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { closeDayModal(); closeAddModal(); }
+    if (e.key === 'Escape') { closeDayModal(); closeAddModal(); closePresetsModal(); }
   });
 
   async function init() {
