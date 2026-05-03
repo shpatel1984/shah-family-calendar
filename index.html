@@ -62,6 +62,58 @@ body {
   transition: opacity 0.6s, visibility 0.6s;
 }
 #loading-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+/* Lock Screen */
+#lock-screen {
+  position: fixed; inset: 0; z-index: 9998;
+  background: var(--bg);
+  display: none;
+  align-items: center; justify-content: center;
+  padding: 24px;
+}
+#lock-screen.visible { display: flex; }
+.lock-card {
+  width: 100%; max-width: 360px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 18px; padding: 32px 28px;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+.lock-title {
+  font-size: 1.4rem; font-weight: 700;
+  letter-spacing: -0.025em; color: var(--text);
+  margin-bottom: 6px;
+}
+.lock-sub {
+  font-size: 0.82rem; color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+.lock-input {
+  width: 100%; padding: 14px 16px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 1rem;
+  color: var(--text); background: var(--bg);
+  outline: none; transition: all var(--transition);
+  text-align: center; letter-spacing: 0.08em;
+}
+.lock-input:focus {
+  border-color: var(--samir);
+  background: var(--card);
+  box-shadow: 0 0 0 3px rgba(27,122,78,0.10);
+}
+.lock-error {
+  font-size: 0.78rem; color: #DC2626;
+  margin: 8px 0 0; min-height: 18px;
+}
+.lock-submit {
+  width: 100%; margin-top: 14px;
+  padding: 13px; border: none; border-radius: var(--radius-sm);
+  background: var(--samir); color: #fff;
+  font-family: inherit; font-size: 0.9rem; font-weight: 600;
+  cursor: pointer; transition: background var(--transition);
+}
+.lock-submit:hover { background: #156B40; }
+.lock-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 .loading-spinner {
   width: 40px; height: 40px;
   border: 2px solid var(--border);
@@ -685,6 +737,18 @@ header {
   <div class="loading-spinner"></div>
   <div class="loading-text">Family Calendar</div>
   <div class="loading-sub"></div>
+</div>
+
+<div id="lock-screen">
+  <div class="lock-card">
+    <div class="lock-title">Family Calendar</div>
+    <div class="lock-sub">Enter passcode to continue</div>
+    <form id="lock-form">
+      <input type="password" id="lock-input" class="lock-input" placeholder="Passcode" autocomplete="current-password" required>
+      <div class="lock-error" id="lock-error"></div>
+      <button type="submit" class="lock-submit" id="lock-submit">Unlock</button>
+    </form>
+  </div>
 </div>
 
 <header>
@@ -1914,12 +1978,59 @@ header {
     if (e.key === 'Escape') { closeDayModal(); closeAddModal(); closePresetsModal(); }
   });
 
-  async function init() {
+  // --- Auth ---
+  const FAMILY_EMAIL = 'family@patel-calendar.local';
+  const lockScreen = $('lock-screen');
+  const lockForm = $('lock-form');
+  const lockInput = $('lock-input');
+  const lockError = $('lock-error');
+  const lockSubmit = $('lock-submit');
+
+  async function isSignedIn() {
+    const { data } = await sb.auth.getSession();
+    return !!(data && data.session);
+  }
+
+  function showLockScreen() {
+    loadingScreen.classList.add('hidden');
+    lockScreen.classList.add('visible');
+    setTimeout(() => lockInput.focus(), 50);
+  }
+  function hideLockScreen() { lockScreen.classList.remove('visible'); }
+
+  lockForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    lockError.textContent = '';
+    lockSubmit.disabled = true;
+    lockSubmit.textContent = 'Unlocking…';
+    const password = lockInput.value;
+    const { data, error } = await sb.auth.signInWithPassword({ email: FAMILY_EMAIL, password });
+    lockSubmit.disabled = false;
+    lockSubmit.textContent = 'Unlock';
+    if (error || !data.session) {
+      lockError.textContent = 'Wrong passcode. Try again.';
+      lockInput.select();
+      return;
+    }
+    hideLockScreen();
+    loadingScreen.classList.remove('hidden');
+    await runApp();
+  });
+
+  async function runApp() {
     await seedIfEmpty();
     await loadEvents();
     subscribeRealtime();
     render();
     loadingScreen.classList.add('hidden');
+  }
+
+  async function init() {
+    if (await isSignedIn()) {
+      await runApp();
+    } else {
+      showLockScreen();
+    }
   }
   init();
 })();

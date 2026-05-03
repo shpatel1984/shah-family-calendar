@@ -1,4 +1,4 @@
-const CACHE = 'family-calendar-v3';
+const CACHE = 'family-calendar-v4';
 const PRECACHE = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (e) => {
