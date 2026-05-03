@@ -880,6 +880,22 @@ header {
   let undoStack = []; // { type, data } for undo operations
   let undoTimer = null;
 
+  // Normalize who-field so casing/whitespace variations still resolve to a color.
+  function normalizeWho(w) {
+    if (!w) return null;
+    const lower = String(w).trim().toLowerCase();
+    for (const m of MEMBERS) if (m.toLowerCase() === lower) return m;
+    return null;
+  }
+  function whoColor(w) {
+    const n = normalizeWho(w);
+    return n ? COLORS[n] : '#9CA3AF';
+  }
+  function whoBg(w) {
+    const n = normalizeWho(w);
+    return n ? COLOR_BG[n] : 'rgba(156,163,175,0.18)';
+  }
+
   // --- Quick Add Presets ---
   const DEFAULT_PRESETS = [
     'Mathnasium', 'Spanish Tutor', 'Baseball with Carlos',
@@ -978,8 +994,8 @@ header {
       const remaining = dayEvents.length - maxPills;
 
       for (const ev of shown) {
-        const bg = COLOR_BG[ev.who] || 'rgba(0,0,0,0.08)';
-        const fg = COLORS[ev.who] || '#666';
+        const bg = whoBg(ev.who);
+        const fg = whoColor(ev.who);
         if (bulkMode) {
           const checked = bulkSelected.has(String(ev.id)) ? 'checked' : '';
           html += `<div class="event-pill" style="background:${bg};color:${fg}"><input type="checkbox" class="pill-checkbox" data-id="${ev.id}" ${checked}><span class="event-pill-text">${ev.title}</span></div>`;
@@ -1086,8 +1102,8 @@ header {
     if (!ev) return;
 
     dragDidMove = false;
-    const bg = COLOR_BG[ev.who] || 'rgba(0,0,0,0.08)';
-    const fg = COLORS[ev.who] || '#666';
+    const bg = whoBg(ev.who);
+    const fg = whoColor(ev.who);
 
     // Create ghost
     dragGhost = document.createElement('div');
@@ -1320,7 +1336,7 @@ header {
       html = '<div class="no-events">No events this day</div>';
     } else {
       for (const ev of dayEvents) {
-        const color = COLORS[ev.who] || '#999';
+        const color = whoColor(ev.who);
         let meta = ev.who;
         if (ev.start !== ev.end) {
           meta += ` \u00B7 ${parseDate(ev.start).toLocaleDateString('en-US',{month:'short',day:'numeric'})} \u2013 ${parseDate(ev.end).toLocaleDateString('en-US',{month:'short',day:'numeric'})}`;
@@ -1417,8 +1433,10 @@ header {
     $('f-start-time').value = ev.start_time || '';
     $('f-end-time').value = ev.end_time || '';
     $('f-notes').value = ev.notes || '';
-    selectedWho.add(ev.who);
-    document.querySelector(`.who-toggle[data-who="${ev.who}"]`).classList.add('selected');
+    const normalizedWho = normalizeWho(ev.who) || ev.who;
+    selectedWho.add(normalizedWho);
+    const toggle = document.querySelector(`.who-toggle[data-who="${normalizedWho}"]`);
+    if (toggle) toggle.classList.add('selected');
     $('add-modal-title').textContent = 'Edit Event';
     $('f-submit').textContent = 'Save Changes';
     $('quick-add-section').style.display = 'none';
